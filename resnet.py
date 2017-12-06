@@ -8,6 +8,7 @@ from keras.layers import AveragePooling2D, GlobalMaxPooling2D, Lambda, Input, Fl
 from keras import optimizers
 
 import numpy as np
+from triplets_generator import DataGenerator
 
 def l2Norm(x):
     return  K.l2_normalize(x, axis=-1)
@@ -24,10 +25,10 @@ def triplet_loss(_, y_pred):
 def accuracy(_, y_pred):
 	return K.mean(y_pred[0] < 0.4 and y_pred[1] > 0.6)
 
-K.set_image_dim_ordering('tf')
-
 
 """ Building the resnet feature map model """
+
+K.set_image_dim_ordering('tf')
 
 base_model = ResNet50(weights='imagenet', include_top = True)
 #base_model.summary()
@@ -64,12 +65,20 @@ stacked_dists = Lambda(
 model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
 model.summary()
 
+""" Training """
+batch_size = 5
+training_generator = DataGenerator(dim_x = 224, dim_y = 224, batch_size = batch_size, dataset_path = './places365-dataset/20_classes').generate()
+#validation_generator = DataGenerator(dim_x = 224, dim_y = 224, batch_size = batch_size, dataset_path = './places365-dataset/20_classes').generate()
+
+
 opt = optimizers.Adam()
 model.compile(loss=triplet_loss, optimizer=opt)
 
-for i in range(5):
+"""for i in range(5):
 	anchor = np.ones((10,224,224,3))
 	positive = np.ones((10,224,224,3))
 	negative = np.ones((10,224,224,3))
 
-	model.fit(x=[anchor, positive, negative], y=np.ones((len(anchor),2,1)), batch_size=5, epochs=i+1, initial_epoch=i)
+	model.fit(x=[anchor, positive, negative], y=np.ones((len(anchor),2,1)), batch_size=5, epochs=i+1, initial_epoch=i)"""
+model.fit_generator(generator = training_generator,
+                    steps_per_epoch = 98500//batch_size)

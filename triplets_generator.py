@@ -3,6 +3,8 @@ import numpy as np
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 
+import matplotlib.pyplot as plt
+
 class DataGenerator(object):
 	'Generates data for Keras'
 	def __init__(self, dim_x = 224, dim_y = 224, batch_size = 10, dataset_path = './places365-dataset/20_classes'):
@@ -17,18 +19,15 @@ class DataGenerator(object):
 		# Infinite loop
 		while 1:
 			# Generate order of exploration of dataset
-			#indexes = self.__get_exploration_order(list_IDs)
 			image_IDs = self.__make_triplets()
 
 			# Generate batches
 			imax = int(len(image_IDs)/self.batch_size)
 			for i in range(imax):
 				# Find list of IDs
-				#list_IDs_temp = [list_IDs[k] for k in indexes[i*self.batch_size:(i+1)*self.batch_size]]
 				image_IDS_temp = image_IDs[i*self.batch_size:(i+1)*self.batch_size]
 
 				# Generate data
-				#X, y = self.__data_generation(labels, list_IDs_temp)
 				X = self.__data_generation(image_IDS_temp)
 				y = np.ones((self.batch_size, 2, 1)) # not used by triple loss function
 
@@ -68,6 +67,9 @@ class DataGenerator(object):
 		anchor_batch = []
 		positive_batch = []
 		negative_batch = []
+		#anchor_batch = np.empty((0,224,224,3))
+		#positive_batch = np.empty((0,224,224,3))
+		#negative_batch = np.empty((0,224,224,3))
 
 		for img_path in image_IDs:
 			anchor = image.load_img(os.path.join(self.dataset_path, img_path[0]), target_size=(self.dim_y, self.dim_x))
@@ -92,7 +94,11 @@ class DataGenerator(object):
 			anchor_batch.append(anchor)
 			positive_batch.append(positive)
 			negative_batch.append(negative)
+			"""anchor_batch = np.append(anchor_batch, anchor, axis=0)
+			positive_batch = np.append(positive_batch, positive, axis=0)
+			negative_batch = np.append(negative_batch, negative, axis=0)"""
 
 		return [np.array(anchor_batch), np.array(positive_batch), np.array(negative_batch)]
+		#return [anchor_batch, positive_batch, negative_batch]
 
 

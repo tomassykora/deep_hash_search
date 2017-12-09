@@ -4,7 +4,7 @@ from keras.models import Model
 from keras.layers import AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D, Lambda, Input, Flatten, Dense
 from keras.layers import BatchNormalization, Dropout, PReLU
 from keras import optimizers
-
+import tensorflow as tf
 import numpy as np
 from triplets_generator import DataGenerator
 
@@ -30,7 +30,8 @@ def mean_pos_dist(_, y_pred):
 
 def mean_neg_dist(_, y_pred):
 	return K.mean(y_pred[:,1,0])
-
+def fake_loss(__,_):
+	return K.constant(0)
 """ Building the resnet feature map model """
 
 K.set_image_dim_ordering('tf')
@@ -81,17 +82,22 @@ stacked_dists = Lambda(
 			lambda vects: K.stack(vects, axis=1),
 			name='stacked_dists'
 )([positive_dist, negative_dist])
+opt = optimizers.Adam(lr=0.0002)
+
+model_generator = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
+model_generator.compile(loss=fake_loss, optimizer=opt)
 
 model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
 model.summary()
 
 """ Training """
 batch_size = 5
-training_generator = DataGenerator(dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='./places365-dataset/20_classes').generate()
+graph = tf.get_default_graph()
+
+training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='./fixed_data').generate()
 #validation_generator = DataGenerator(dim_x = 224, dim_y = 224, batch_size = batch_size, dataset_path = './places365-dataset/20_classes').generate()
 
 
-opt = optimizers.Adam(lr=0.0002)
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 
 model.fit_generator(generator = training_generator,

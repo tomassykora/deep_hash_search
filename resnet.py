@@ -91,7 +91,7 @@ def test(model):
     print (batch_files[0])
     sim=sim_sort(preds[0],batch_files,preds)
     #print (sim)
-    print (AP(sim,batch_files[0].split("/")[0],49))
+    print (AP(sim,batch_files[0].split("/")[0],50))
     print ("MAP: %s"%MAP(preds,batch_files))
 K.set_image_dim_ordering('tf')
 
@@ -161,6 +161,6 @@ training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, b
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 
 model.fit_generator(generator = training_generator,
-                    steps_per_epoch = 45470/(batch_size*1500),
+                    steps_per_epoch = 45470/(batch_size),
                     epochs = 1)
 test(base_model)

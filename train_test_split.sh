@@ -5,6 +5,8 @@ for class in fixed_data/*
 	classname="$(basename $class)"
 	mkdir data_train/$classname
 	mkdir data_test/$classname
+        mkdir data_val/$classname
+
 	i=0;
 	for file in $class/*
 		do
@@ -12,8 +14,10 @@ for class in fixed_data/*
 		if ( [ $i -lt 51 ] )
 		then
 			cp $file data_test/$classname/
-		else
-                        cp $file data_train/$classname/
+		elif ( [ $i -lt 101 ] && [ $i -gt 50 ] )
+                        cp $file data_val/$classname/
+		else 
+			cp $file data_train/$classname/
 		fi
 		done
 	done

@@ -50,7 +50,11 @@ def sim_sort(anch,filenames,predictions):
 def AP(sim, class_name, class_len):
     correct=0.0
     prec_sum=0.0
-    for i,(file,score) in enumerate(sim.iteritems()):
+    try:#python2
+        ititems=sim.iteritems()
+    except:
+        ititems=sim.items()
+    for i,(file,score) in enumerate(ititems):
         if i == 0: continue
         print (file,score)
         if file.split("/")[0]==class_name:

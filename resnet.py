@@ -4,14 +4,13 @@ from keras.models import Model
 from keras.layers import AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D, Lambda, Input, Flatten, Dense
 from keras.layers import BatchNormalization, Dropout, PReLU
 from keras import optimizers
+
 import tensorflow as tf
 import numpy as np
-import os
+
 from triplets_generator import DataGenerator
-from keras.preprocessing import image
-from keras.applications.resnet50 import preprocess_input
-import operator
-from collections import OrderedDict
+import evaluate
+
 def l2Norm(x):
     return  K.l2_normalize(x, axis=-1)
 
@@ -34,69 +33,13 @@ def mean_pos_dist(_, y_pred):
 
 def mean_neg_dist(_, y_pred):
     return K.mean(y_pred[:,1,0])
+
 def fake_loss(__,_):
     return K.constant(0)
+
+
 """ Building the resnet feature map model """
 
-
-def sim_sort(anch,filenames,predictions):
-    def euclidean_distance(x, y):
-        return np.linalg.norm(x - y)
-    sims={}
-    for i, candidate in enumerate(predictions):
-        sims[filenames[i]]=euclidean_distance(anch, candidate)
-    return OrderedDict(sorted(sims.items(), key=lambda t: t[1]))
-
-def AP(sim, class_name, class_len):
-    correct=0.0
-    prec_sum=0.0
-    try:#python2
-        ititems=sim.iteritems()
-    except:
-        ititems=sim.items()
-    for i,(file,score) in enumerate(ititems):
-        if i == 0: continue
-        print (file,score)
-        if file.split("/")[0]==class_name:
-            correct+=1
-            prec_sum+=correct/i
-    return (prec_sum/(min(class_len,i)))
-
-def MAP(preds,batch_files):
-    sumAP=0
-    for pred,file in zip(preds,batch_files):
-        print ("similarity for %s:"%file)
-        sim = sim_sort(pred, batch_files, preds)
-        ap=(AP(sim, file.split("/")[0], 49))
-        print (ap)
-        sumAP+=ap
-    return sumAP/len(batch_files)
-
-def test(model):
-    dataset_path="./data_test"
-    classes = [name for name in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, name))]
-    batch=[]
-    batch_files = []
-    for Id, c in enumerate(classes):
-        pos_dir = os.path.join(dataset_path, c)
-        imgs = os.listdir(pos_dir)
-        for img_path in imgs:
-            print (os.path.join(c,img_path))
-            img = image.load_img(os.path.join(dataset_path, os.path.join(c,img_path)), target_size=(224,224))
-            img = image.img_to_array(img)
-            img = np.expand_dims(img, axis=0)
-            img = preprocess_input(img)
-            img = np.squeeze(img)
-            batch.append(img)
-            batch_files.append(os.path.join(c,img_path))
-    preds=(model.predict([np.asarray(batch)]))
-    print(preds)
-    print (preds.shape)
-    print (batch_files[0])
-    sim=sim_sort(preds[0],batch_files,preds)
-    #print (sim)
-    print (AP(sim,batch_files[0].split("/")[0],50))
-    print ("MAP: %s"%MAP(preds,batch_files))
 K.set_image_dim_ordering('tf')
 
 resnet_input = Input(shape=(224,224,3))
@@ -145,7 +88,7 @@ stacked_dists = Lambda(
             lambda vects: K.stack(vects, axis=1),
             name='stacked_dists'
 )([positive_dist, negative_dist])
-opt = optimizers.Adam(lr=0.0002)
+opt = optimizers.Adam(lr=0.0005)
 
 model_generator = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
 model_generator.compile(loss=fake_loss, optimizer=opt)
@@ -157,14 +100,32 @@ model.summary()
 """ Training """
 batch_size = 5
 graph = tf.get_default_graph()
-
 training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='./data_train').generate()
-#validation_generator = DataGenerator(dim_x = 224, dim_y = 224, batch_size = batch_size, dataset_path = './places365-dataset/20_classes').generate()
-
 
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 
 model.fit_generator(generator = training_generator,
                     steps_per_epoch = 45470/(batch_size),
                     epochs = 1)
-test(base_model)
+
+""" Now train the rest of the network (still not all the of the layers) """
+for layer in model.layers[:131]:
+   layer.trainable = False
+for layer in model.layers[131:]:
+   layer.trainable = True
+
+opt = optimizers.Adam(lr=0.0004)
+model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
+model.fit_generator(generator = training_generator,
+                    steps_per_epoch = 45470//batch_size,
+                    epochs = 3)
+
+# serialize model to JSON
+model_json = model.to_json()
+with open("model.json", "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("model_weights.h5")
+print("Saved model to disk")
+
+evaluate.test(base_model)

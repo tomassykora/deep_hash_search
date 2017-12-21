@@ -52,6 +52,8 @@ class DataGenerator(object):
         nparray = np.squeeze(nparray)
         return nparray
     def __make_triplets(self):
+        
+        np.random.seed(0)
 
         classes = self.__get_subdirectories(self.dataset_path)
 

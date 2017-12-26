@@ -98,9 +98,9 @@ model = Model([input_anchor, input_positive, input_negative], stacked_dists, nam
 model.summary()
 
 """ Training """
-batch_size = 5
+batch_size = 10
 graph = tf.get_default_graph()
-training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='./data_train').generate()
+training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='/storage/brno6/home/cepin/deep_hash_search/data_train').generate()
 
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 
@@ -117,7 +117,7 @@ for layer in model.layers[131:]:
 opt = optimizers.Adam(lr=0.0004)
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 model.fit_generator(generator = training_generator,
-                    steps_per_epoch = 45470//batch_size,
+                    steps_per_epoch = 242089/batch_size,
                     epochs = 3)
 
 # serialize model to JSON
@@ -126,6 +126,8 @@ with open("model.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
 base_model.save("model.h5")
+model.save("model_triplets.h5")
+
 print("Saved model to disk")
 
 evaluate.test(base_model)

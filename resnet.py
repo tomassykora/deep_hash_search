@@ -121,11 +121,11 @@ model.fit_generator(generator = training_generator,
                     epochs = 3)
 
 # serialize model to JSON
-model_json = model.to_json()
+model_json = base_model.to_json()
 with open("model.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_weights.h5")
+base_model.save("model.h5")
 print("Saved model to disk")
 
 evaluate.test(base_model)

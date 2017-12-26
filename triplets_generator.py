@@ -4,6 +4,8 @@ import random
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 
+
+
 class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self,model,graph, dim_x = 224, dim_y = 224, batch_size = 10, dataset_path = './places365-dataset/20_classes'):

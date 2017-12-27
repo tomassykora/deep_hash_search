@@ -3,7 +3,10 @@ import numpy as np
 import random
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
-
+import sqlite3
+import json
+#TODO
+#ukladani do db pro vyhledavani
 
 
 class DataGenerator(object):
@@ -16,6 +19,15 @@ class DataGenerator(object):
         self.dataset_path = dataset_path
         self.model=model
         self.graph=graph
+        self.conn=sqlite3.connect('representations.db')
+        cur = self.conn.cursor()
+        try:
+            cur.execute("DROP TABLE IMAGES")
+        except sqlite3.OperationalError:
+            pass
+        cur.execute("CREATE TABLE IMAGES (id INTEGER PRIMARY KEY, path VARCHAR(255), matrix BLOB)")
+        self.conn.commit()
+
     def generate(self):
         'Generates batches of samples'
         # Infinite loop
@@ -61,6 +73,7 @@ class DataGenerator(object):
 
         all_triplets = []
         for Id, c in enumerate(classes):
+            print ("generating triplets for %s (%s/%s)"%(c,Id+1,len(classes)))
             pos_dir = os.path.join(self.dataset_path, c)
             imgs_pos = os.listdir(pos_dir)
             class_triplets = []
@@ -71,12 +84,16 @@ class DataGenerator(object):
             positives=[]
             negatives=[]
             for idx in range(0,len(imgs_pos),2):
-                if idx>10:
+                if not idx%500:
+                    print ("%s/%s"%(idx,len(imgs_pos)))
+                if idx>=1500:
                     continue
                 anchor=self._img_to_np(c + '/' + imgs_pos[idx])
-
-                positive=self._img_to_np(c + '/' + imgs_pos[idx+1])
-
+                try:
+                    positive=self._img_to_np(c + '/' + imgs_pos[idx+1])
+                except IndexError:
+                    idx=-1
+                    positive=self._img_to_np(c + '/' + imgs_pos[idx+1])
 
                 rand_class = random.choice([x for x in classes if x != c])  # choose a different class randomly
                 #print ("Positive: %s"%c)
@@ -97,7 +114,7 @@ class DataGenerator(object):
                 negative_batch.append(negative1)
                 negatives.append(rand_class + '/'+ neg)
                 #negative_batch.append(negative2)
-
+            print ("Calculating representations for %s"%c)
             with self.graph.as_default():
                 preds = self.model.predict(
                     [np.asarray(anchor_batch), np.asarray(positive_batch), np.asarray(negative_batch)])
@@ -113,6 +130,22 @@ class DataGenerator(object):
             #print (preds_anch.shape)
             #print (preds_pos.shape)
             #print (preds_neg.shape)
+            print ("Calculating distances for %s"%c)
+
+            #anch_pairs=[("%s/%s"%(c,matrix[0]),matrix[1]) for matrix in zip(imgs_pos,preds_anch)]
+            #pos_pairs=[("%s/%s"%(c,matrix[0]),matrix[1]) for matrix in zip(positives,preds_pos)]
+            #print (anch_pairs)
+            conn = sqlite3.connect('representations.db')
+            cur = conn.cursor()
+
+            for name, matrix in zip(imgs_pos,preds_anch):
+                name="%s/%s"%(c,name)
+                cur.execute("INSERT INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
+            for name, matrix in zip(positives,preds_pos):
+                name="%s/%s"%(c,name)
+                cur.execute("INSERT INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
+
+            conn.commit()
 
             for i,anch in enumerate(preds_anch):
                 least_sim_pos_idx,most_sim_neg_idx=self._least_similar(preds_anch[i],preds_pos,preds_neg)
@@ -123,6 +156,7 @@ class DataGenerator(object):
             all_triplets += class_triplets
 
         triplets = np.array(all_triplets)
+        np.save("triplets.npy",triplets)
         np.random.shuffle(triplets)
         #print (triplets)
         #print (triplets.shape)

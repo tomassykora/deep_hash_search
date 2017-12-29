@@ -15,8 +15,7 @@ import evaluate
 import triplets_generator,sqlite3
 datapath="/storage/brno6/home/cepin/deep_hash_search/"
 
-def update_db(model):
-    dataset="/storage/brno6/home/cepin/deep_hash_search/data_train5"
+def update_db(model,dataset="/storage/brno6/home/cepin/deep_hash_search/data_train5"):
     conn = sqlite3.connect('representations.db')
     cur = conn.cursor()
     classes = triplets_generator.get_subdirectories(dataset)
@@ -40,6 +39,9 @@ def update_db(model):
         for name, matrix in zip(batch_files, preds):
             name = "%s/%s" % (c, name)
             cur.execute("REPLACE INTO images VALUES (?,?,?)", (None, name, json.dumps(matrix.tolist())))
+        conn.commit()
+
+
 def l2Norm(x):
     return  K.l2_normalize(x, axis=-1)
 

@@ -1,0 +1,16 @@
+First, you need to download the dataset and extract it:
+
+	wget -c http://data.csail.mit.edu/places/places365/train_256_places365standard.tar
+	tar -xf train_256_places365standard.tar
+
+Then run 
+	./train_test_split.sh
+to split the dataset into training and testing parts
+
+Now you can launch training with
+	python3 resnet.py
+
+after the model is trained and saved, you can run the sample website:
+	FLASK_APP=web_pova.py flask run
+
+Requirements: Keras, tensorflow, Flask

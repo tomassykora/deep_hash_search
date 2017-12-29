@@ -7,6 +7,7 @@ from keras.applications.resnet50 import preprocess_input
 import sqlite3, json, os
 from itertools import islice
 from resnet import fake_loss
+import resnet
 import keras.losses
 from keras.applications.resnet50 import ResNet50
 
@@ -23,7 +24,7 @@ def search( img_path, model_file="model.h5"):
     img = preprocess_input(img)
     img = np.squeeze(img)
     batch.append(img)
-    preds=(model.predict([np.asarray(batch)]))
+    preds=model.predict(np.asarray(batch))
     print(preds)
     print (preds.shape)
     #print (sim)
@@ -43,6 +44,7 @@ def search( img_path, model_file="model.h5"):
         files.append(row[1])
         rep.append(np.asarray(json.loads(row[2]),dtype="float32"))
     print (preds)
-    print (evaluate.sim_sort(preds[0], files, rep))
-    return evaluate.sim_sort(preds[0],files,rep)
-search("static/data_train/airfield/00000450.jpg")
+    print (evaluate.sim_sort(preds, files, rep))
+    return evaluate.sim_sort(preds,files,rep)
+#resnet.update_db(load_model("model.h5"),dataset="static/data_train")
+#search("static/data_train/airfield/00000450.jpg")

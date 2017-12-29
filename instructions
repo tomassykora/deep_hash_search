@@ -7,6 +7,9 @@ Then run
 	./train_test_split.sh
 to split the dataset into training and testing parts
 
+Alternatively, you can skip previous steps and download prepared toy data from http://www.stud.fit.vutbr.cz/~xjonjo00/data_small.tar.gz
+
+
 Now you can launch training with
 	python3 resnet.py
 

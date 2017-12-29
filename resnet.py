@@ -13,34 +13,9 @@ import os,json
 from triplets_generator import DataGenerator
 import evaluate
 import triplets_generator,sqlite3
-datapath="/storage/brno6/home/cepin/deep_hash_search/"
-
-def update_db(model,dataset="/storage/brno6/home/cepin/deep_hash_search/data_train5"):
-    conn = sqlite3.connect('representations.db')
-    cur = conn.cursor()
-    classes = triplets_generator.get_subdirectories(dataset)
-    print ("Updating representations in db")
-
-    for Id, c in enumerate(classes):
-        batch=[]
-        batch_files=[]
-        pos_dir = os.path.join(dataset, c)
-        imgs_pos = os.listdir(pos_dir)
-
-        for idx in range(0, len(imgs_pos)):
-            if idx >= 10000:
-                break
-            img = triplets_generator.img_to_np(os.path.join(dataset,c + '/' + imgs_pos[idx]))
-            batch.append(img)
-            batch_files.append(imgs_pos[idx])
-
-        print ("Calculating representations for %s"%c)
-        preds =model.predict(np.asarray(batch))
-        for name, matrix in zip(batch_files, preds):
-            name = "%s/%s" % (c, name)
-            cur.execute("REPLACE INTO images VALUES (?,?,?)", (None, name, json.dumps(matrix.tolist())))
-        conn.commit()
-
+import dbutils
+#datapath="/storage/brno6/home/cepin/deep_hash_search/"
+datapath="./"
 
 def l2Norm(x):
     return  K.l2_normalize(x, axis=-1)
@@ -124,8 +99,8 @@ if __name__ == "__main__":
     model_generator = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
     model_generator.compile(loss=fake_loss, optimizer=opt)
     base_model.compile(loss=fake_loss, optimizer=opt)
-    base_model.save("model.h5")
-    model_generator.save("model_generator.h5")
+    #base_model.save("model.h5")
+    #model_generator.save("model_generator.h5")
 
     model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
     model.summary()
@@ -152,7 +127,7 @@ if __name__ == "__main__":
     opt = optimizers.Adam(lr=0.0004)
     model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
     model.fit_generator(generator = training_generator,
-                        steps_per_epoch = 10000/batch_size,
+                        steps_per_epoch = (24500/2)/batch_size,
                         epochs = 1)
 
     # serialize model to JSON
@@ -166,4 +141,4 @@ if __name__ == "__main__":
     print("Saved model to disk")
 
     evaluate.test(base_model)
-    update_db(base_model)
+    dbutils.update_db(base_model)

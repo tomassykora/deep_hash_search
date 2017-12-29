@@ -25,26 +25,15 @@ def search( img_path, model_file="model.h5"):
     img = np.squeeze(img)
     batch.append(img)
     preds=model.predict(np.asarray(batch))
-    print(preds)
-    print (preds.shape)
-    #print (sim)
 
     conn = sqlite3.connect('representations.db')
     cur = conn.cursor()
     files=[]
     rep=[]
     for row in cur.execute('SELECT * FROM images'):
-        if "airfield/00000450.jpg" in row[1]:
-            print ("OMG OMG OMG")
-            print (row[1])
-
-            #print (row[2])
-            #preds = [np.asarray(json.loads(row[2]), dtype="float32")]
-            print (np.asarray(json.loads(row[2]), dtype="float32"))
         files.append(row[1])
         rep.append(np.asarray(json.loads(row[2]),dtype="float32"))
-    print (preds)
-    print (evaluate.sim_sort(preds, files, rep))
     return evaluate.sim_sort(preds,files,rep)
-#resnet.update_db(load_model("model.h5"),dataset="static/data_train")
-#search("static/data_train/airfield/00000450.jpg")
+if __name__=="__main__":
+    resnet.update_db(load_model("model.h5"),dataset="static/data_train")
+    search("static/data_train/airfield/00000450.jpg")

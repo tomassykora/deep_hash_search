@@ -4,7 +4,7 @@ import random
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 import sqlite3
-import json
+import json, dbutils
 #TODO
 #ukladani do db pro vyhledavani
 imgs_per_class=10000
@@ -31,17 +31,8 @@ class DataGenerator(object):
         self.model=model
         self.graph=graph
         self.conn=sqlite3.connect('representations.db')
-        cur = self.conn.cursor()
-        #try:
-        #    cur.execute("DROP TABLE IMAGES")
-        #except sqlite3.OperationalError:
-        #    pass
-        cur.execute("CREATE TABLE IF NOT EXISTS IMAGES (id INTEGER PRIMARY KEY, path VARCHAR(255) , matrix BLOB)")
-        try:
-            cur.execute("CREATE UNIQUE INDEX idx_images_path ON images(path)")
-        except:pass
+        dbutils.create()
 
-        self.conn.commit()
 
     def generate(self):
         'Generates batches of samples'

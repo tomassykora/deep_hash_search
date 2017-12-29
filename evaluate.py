@@ -45,7 +45,8 @@ def MAP(preds,batch_files):
     return sumAP/len(batch_files)
 
 def test(model):
-    dataset_path="/storage/brno6/home/cepin/deep_hash_search/data_test5"
+    #dataset_path="/storage/brno6/home/cepin/deep_hash_search/data_test5"
+    dataset_path="data_test5"
     classes = [name for name in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, name))]
     batch=[]
     batch_files = []

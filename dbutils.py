@@ -1,4 +1,5 @@
-import triplets_generator,sqlite3
+import triplets_generator,sqlite3,os,json
+import numpy as np
 def create():
     conn=sqlite3.connect('representations.db')
     cur = conn.cursor()

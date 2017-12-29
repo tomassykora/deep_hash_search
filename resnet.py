@@ -101,7 +101,7 @@ if __name__ == "__main__":
     base_model.compile(loss=fake_loss, optimizer=opt)
     #base_model.save("model.h5")
     #model_generator.save("model_generator.h5")
-
+    #dbutils.update_db(base_model)
     model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
     model.summary()
 
@@ -137,7 +137,6 @@ if __name__ == "__main__":
     # serialize weights to HDF5
     base_model.save(os.path.join(datapath,"model.h5"))
     model.save(os.path.join(datapath,"model_triplets.h5"))
-    model.save_weights('model_weights.h5')
 
     print("Saved model to disk")
 

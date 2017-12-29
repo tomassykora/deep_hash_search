@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search results</title>
+<style>
+
+.button {
+
+                background-color: #EEEEEE;
+               border: solid;
+                border-width:1px;
+                border-color:#EEEEEE;
+        position:relative;
+                text-align: center;
+                text-decoration: none;
+                font-size: 12px;
+        opacity:0.7;
+                transition-duration: 0.3s;
+}
+
+.button:hover {
+    opacity:1;
+                border: solid;
+                border-width:1px;
+                border-color:#8CEF90;
+             }
+
+
+</style>
+</head>
+<body>
+Query:
+<br>
+
+<img  alt={{query_path}} src="{{query_path}}"/>
+<br>
+
+
+{% for path, dist in results %}
+<span class=button style="margin:5px; background-color: #EEEEEE;  text-decoration: none; background-color: #EEEEEE;display: inline-block; width: 330px;" >
+    <figure>
+
+<img  alt={{path}} src="/static/data_train/{{path}}"/><figcaption>{{dist}}</figcaption>
+    </figure>
+</span>
+{% endfor %}
+</body>
+</html>

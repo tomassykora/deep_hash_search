@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from itertools import islice
 from resnet import fake_loss
 
-UPLOAD_FOLDER = '/home/cepin/pov/'
+UPLOAD_FOLDER = 'static/'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 results_count=50
 app = Flask(__name__)
@@ -38,5 +38,5 @@ def upload_file():
             #print (results)
             results=search.search(filename)
             #print(results)
-            return render_template('results.html', results=islice(results.items(),results_count))
+            return render_template('results.html',query_path=filename, results=islice(results.items(),results_count))
     return render_template('search.html', text="hello")

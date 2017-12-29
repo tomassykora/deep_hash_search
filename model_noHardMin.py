@@ -8,7 +8,7 @@ from keras.models import model_from_json
 
 import os
 import numpy as np
-from triplets_generator import DataGenerator
+from triplets_generator_noHardMin import DataGenerator
 import evaluate
 
 def l2Norm(x):

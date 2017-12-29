@@ -68,6 +68,6 @@ stacked_dists = Lambda(
 
 model = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
 
-model.load_weights('./model.h5')
+model.load_weights('./model_weights.h5')
 
 evaluate.test(base_model)

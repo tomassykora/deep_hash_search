@@ -7,13 +7,25 @@ Then run
 	./train_test_split.sh
 to split the dataset into training and testing parts
 
-Alternatively, you can skip previous steps and download prepared toy data from http://www.stud.fit.vutbr.cz/~xjonjo00/data_small.tar.gz
+Alternatively, you can skip previous steps and download prepared toy data (small size) from http://www.stud.fit.vutbr.cz/~xjonjo00/data_small.tar.gz
 
+Now you can run training:
 
-Now you can launch training with
-	python3 resnet.py
+To train with hard mining (web api available):
 
-after the model is trained and saved, you can run the sample website:
-	FLASK_APP=web_pova.py flask run
+	launch training with
+		python3 resnet.py
+
+	after the model is trained and saved, you can run the sample website:
+		FLASK_APP=web_pova.py flask run
+
+To train without hard mining (web api not available):
+
+	launch training with
+		python3 model_noHardMin.py
+
+To evaluate saved trained model run:
+
+	python3 eval_results.py
 
 Requirements: Keras, tensorflow, Flask

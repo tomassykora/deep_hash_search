@@ -3,8 +3,6 @@ import numpy as np
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 
-import matplotlib.pyplot as plt
-
 class DataGenerator(object):
 	'Generates data for Keras'
 	def __init__(self, dim_x = 224, dim_y = 224, batch_size = 10, dataset_path = './places365-dataset/20_classes'):

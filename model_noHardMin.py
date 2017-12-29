@@ -11,6 +11,8 @@ import numpy as np
 from triplets_generator_noHardMin import DataGenerator
 import evaluate
 
+datapath="./"
+
 def l2Norm(x):
 	return  K.l2_normalize(x, axis=-1)
 
@@ -87,14 +89,14 @@ model.summary()
 
 """ Training """
 batch_size = 5
-training_generator = DataGenerator(dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='./20_classes').generate()
+training_generator = DataGenerator(dim_x=224, dim_y=224, batch_size=batch_size, dataset_path=os.path.join(datapath,'data_train5')).generate()
 #validation_generator = DataGenerator(dim_x = 224, dim_y = 224, batch_size = batch_size, dataset_path = './places365-dataset/20_classes').generate()
 
 opt = optimizers.Adam(lr=0.0005)
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 
 model.fit_generator(generator = training_generator,
-					steps_per_epoch = 248300//batch_size,
+					steps_per_epoch = 24500//batch_size,
 					epochs = 1)
 
 model.save_weights("model_1epoch.h5")
@@ -105,7 +107,7 @@ model.summary()
 opt = optimizers.Adam(lr=0.00004)
 model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
 model.fit_generator(generator = training_generator,
-					steps_per_epoch = 248300//batch_size,
+					steps_per_epoch = 24500//batch_size,
 					epochs = 1)
 
 # serialize model to JSON
@@ -113,6 +115,6 @@ model_json = model.to_json()
 with open("model.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model.h5")
+model.save_weights("model_weights.h5")
 print("Saved model to disk")
 

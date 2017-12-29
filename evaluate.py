@@ -5,7 +5,12 @@ from collections import OrderedDict
 
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
+from keras.models import load_model
+import keras.losses
+from keras import backend as K
 
+def fake_loss(__,_):
+    return K.constant(0)
 def sim_sort(anch,filenames,predictions):
     def euclidean_distance(x, y):
         return np.linalg.norm(x - y)
@@ -17,7 +22,7 @@ def sim_sort(anch,filenames,predictions):
 def AP(sim, class_name, class_len):
     correct=0.0
     prec_sum=0.0
-    try:#python2
+    try:
         ititems=sim.iteritems()
     except:
         ititems=sim.items()
@@ -40,7 +45,7 @@ def MAP(preds,batch_files):
     return sumAP/len(batch_files)
 
 def test(model):
-    dataset_path="/storage/brno6/home/cepin/deep_hash_search/data_test"
+    dataset_path="/storage/brno6/home/cepin/deep_hash_search/data_test5"
     classes = [name for name in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, name))]
     batch=[]
     batch_files = []
@@ -64,3 +69,6 @@ def test(model):
     #print (sim)
     print (AP(sim,batch_files[0].split("/")[0],50))
     print ("MAP: %s"%MAP(preds,batch_files))
+if __name__ == "__main__":
+    keras.losses.fake_loss = fake_loss
+    test(load_model("model.h5"))

@@ -4,13 +4,42 @@ from keras.models import Model
 from keras.layers import AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D, Lambda, Input, Flatten, Dense
 from keras.layers import BatchNormalization, Dropout, PReLU
 from keras import optimizers
+from keras.preprocessing import image
+from keras.applications.resnet50 import preprocess_input
 
 import tensorflow as tf
 import numpy as np
-
+import os,json
 from triplets_generator import DataGenerator
 import evaluate
+import triplets_generator,sqlite3
+datapath="/storage/brno6/home/cepin/deep_hash_search/"
 
+def update_db(model):
+    dataset="/storage/brno6/home/cepin/deep_hash_search/data_train5"
+    conn = sqlite3.connect('representations.db')
+    cur = conn.cursor()
+    classes = triplets_generator.get_subdirectories(dataset)
+    print ("Updating representations in db")
+
+    for Id, c in enumerate(classes):
+        batch=[]
+        batch_files=[]
+        pos_dir = os.path.join(dataset, c)
+        imgs_pos = os.listdir(pos_dir)
+
+        for idx in range(0, len(imgs_pos)):
+            if idx >= 10000:
+                break
+            img = triplets_generator.img_to_np(os.path.join(dataset,c + '/' + imgs_pos[idx]))
+            batch.append(img)
+            batch_files.append(imgs_pos[idx])
+
+        print ("Calculating representations for %s"%c)
+        preds =model.predict(np.asarray(batch))
+        for name, matrix in zip(batch_files, preds):
+            name = "%s/%s" % (c, name)
+            cur.execute("REPLACE INTO images VALUES (?,?,?)", (None, name, json.dumps(matrix.tolist())))
 def l2Norm(x):
     return  K.l2_normalize(x, axis=-1)
 
@@ -37,99 +66,102 @@ def mean_neg_dist(_, y_pred):
 def fake_loss(__,_):
     return K.constant(0)
 
+if __name__ == "__main__":
+    """ Building the resnet feature map model """
 
-""" Building the resnet feature map model """
+    K.set_image_dim_ordering('tf')
 
-K.set_image_dim_ordering('tf')
+    resnet_input = Input(shape=(224,224,3))
+    resnet_model = ResNet50(weights='imagenet', include_top=False, input_tensor=resnet_input)
 
-resnet_input = Input(shape=(224,224,3))
-resnet_model = ResNet50(weights='imagenet', include_top=False, input_tensor=resnet_input)
+    """net = resnet_model.get_layer('activation_46').output
+    net = MaxPooling2D((7, 7), name='max_pool')(net)
+    net = Flatten(name='flatten')(net)
+    
+    p_drop = 0.5
+    net = Dense(512, name='fc1')(net)
+    #net = BatchNormalization()(net)
+    net = PReLU()(net)
+    net = Dropout(rate=p_drop)(net)"""
 
-"""net = resnet_model.get_layer('activation_46').output
-net = MaxPooling2D((7, 7), name='max_pool')(net)
-net = Flatten(name='flatten')(net)
-
-p_drop = 0.5
-net = Dense(512, name='fc1')(net)
-#net = BatchNormalization()(net)
-net = PReLU()(net)
-net = Dropout(rate=p_drop)(net)"""
-
-net = resnet_model.output
-net = Flatten(name='flatten')(net)
-net = Dense(512, activation='relu', name='fc1')(net)
-net = Dense(512, name='embded')(net)
-net = Lambda(l2Norm, output_shape=[512])(net)
-
-
-base_model = Model(resnet_model.input, net, name='resnet_model')
-base_model.summary()
-
-""" Train just the new layers, let the pretrained ones be as they are (they'll be trained later) """
-for layer in resnet_model.layers:
-    layer.trainable = False
+    net = resnet_model.output
+    net = Flatten(name='flatten')(net)
+    net = Dense(512, activation='relu', name='fc1')(net)
+    net = Dense(512, name='embded')(net)
+    net = Lambda(l2Norm, output_shape=[512])(net)
 
 
-""" Building triple siamese architecture """
+    base_model = Model(resnet_model.input, net, name='resnet_model')
+    base_model.summary()
 
-input_shape=(224,224,3)
-input_anchor = Input(shape=input_shape, name='input_anchor')
-input_positive = Input(shape=input_shape, name='input_pos')
-input_negative = Input(shape=input_shape, name='input_neg')
-
-net_anchor = base_model(input_anchor)
-net_positive = base_model(input_positive)
-net_negative = base_model(input_negative)
-
-positive_dist = Lambda(euclidean_distance, name='pos_dist')([net_anchor, net_positive])
-negative_dist = Lambda(euclidean_distance, name='neg_dist')([net_anchor, net_negative])
-
-stacked_dists = Lambda( 
-            lambda vects: K.stack(vects, axis=1),
-            name='stacked_dists'
-)([positive_dist, negative_dist])
-opt = optimizers.Adam(lr=0.0005)
-
-model_generator = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
-model_generator.compile(loss=fake_loss, optimizer=opt)
-base_model.compile(loss=fake_loss, optimizer=opt)
-
-model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
-model.summary()
-
-""" Training """
-batch_size = 5
-graph = tf.get_default_graph()
-print ("Preparing generator")
-training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path='/storage/brno6/home/cepin/deep_hash_search/data_train').generate()
+    """ Train just the new layers, let the pretrained ones be as they are (they'll be trained later) """
+    for layer in resnet_model.layers:
+        layer.trainable = False
 
 
-#model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
+    """ Building triple siamese architecture """
 
-#model.fit_generator(generator = training_generator,
-#                    steps_per_epoch = 242089/(batch_size),
-#                    epochs = 1)
+    input_shape=(224,224,3)
+    input_anchor = Input(shape=input_shape, name='input_anchor')
+    input_positive = Input(shape=input_shape, name='input_pos')
+    input_negative = Input(shape=input_shape, name='input_neg')
 
-""" Now train the rest of the network (still not all the of the layers) """
-for layer in model.layers[:131]:
-   layer.trainable = False
-for layer in model.layers[131:]:
-   layer.trainable = True
+    net_anchor = base_model(input_anchor)
+    net_positive = base_model(input_positive)
+    net_negative = base_model(input_negative)
 
-opt = optimizers.Adam(lr=0.0004)
-model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
-model.fit_generator(generator = training_generator,
-                    steps_per_epoch = 242089/batch_size,
-                    epochs = 1)
+    positive_dist = Lambda(euclidean_distance, name='pos_dist')([net_anchor, net_positive])
+    negative_dist = Lambda(euclidean_distance, name='neg_dist')([net_anchor, net_negative])
 
-# serialize model to JSON
-model_json = base_model.to_json()
-with open("model.json", "w") as json_file:
-    json_file.write(model_json)
-# serialize weights to HDF5
-base_model.save("model.h5")
-model.save("model_triplets.h5")
+    stacked_dists = Lambda(
+                lambda vects: K.stack(vects, axis=1),
+                name='stacked_dists'
+    )([positive_dist, negative_dist])
+    opt = optimizers.Adam(lr=0.0005)
 
-print("Saved model to disk")
+    model_generator = Model([input_anchor, input_positive, input_negative], [net_anchor,net_positive, net_negative], name='gen')
+    model_generator.compile(loss=fake_loss, optimizer=opt)
+    base_model.compile(loss=fake_loss, optimizer=opt)
+    base_model.save("model.h5")
+    model_generator.save("model_generator.h5")
 
-evaluate.test(base_model)
+    model = Model([input_anchor, input_positive, input_negative], stacked_dists, name='triple_siamese')
+    model.summary()
+
+    """ Training """
+    batch_size = 8
+    graph = tf.get_default_graph()
+    print ("Preparing generator")
+    training_generator = DataGenerator(model_generator,graph,dim_x=224, dim_y=224, batch_size=batch_size, dataset_path=os.path.join(datapath,'data_train5')).generate()
+
+
+    #model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
+
+    #model.fit_generator(generator = training_generator,
+    #                    steps_per_epoch = 20000/(batch_size),
+    #                    epochs = 1)
+
+    """ Now train the rest of the network (still not all the of the layers) """
+    #for layer in model.layers[:131]:
+    #   layer.trainable = False
+    #for layer in model.layers[131:]:
+    #   layer.trainable = True
+
+    opt = optimizers.Adam(lr=0.0004)
+    model.compile(loss=triplet_loss, optimizer=opt, metrics=[accuracy, mean_pos_dist, mean_neg_dist])
+    model.fit_generator(generator = training_generator,
+                        steps_per_epoch = 10000/batch_size,
+                        epochs = 1)
+
+    # serialize model to JSON
+    model_json = base_model.to_json()
+    with open(os.path.join(datapath,"model.json"), "w") as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    base_model.save(os.path.join(datapath,"model.h5"))
+    model.save(os.path.join(datapath,"model_triplets.h5"))
+
+    print("Saved model to disk")
+
+    evaluate.test(base_model)
+    update_db(base_model)

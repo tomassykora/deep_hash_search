@@ -1,23 +1,15 @@
-import pymongo
-import matplotlib.dates as mdates
+#!/usr/bin/env python3
 import numpy as np
-from matplotlib.font_manager import FontProperties
-from Tkinter import *
-from functools import partial
-import json
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
-from bson import json_util
-import matplotlib.pyplot as plt, mpld3
-from flask import render_template
-from flask import Flask
-import os
+import json,os,search
+from flask import render_template,flash
 from flask import Flask, request, redirect, url_for
 from werkzeug.utils import secure_filename
+from itertools import islice
+from resnet import fake_loss
 
 UPLOAD_FOLDER = '/home/cepin/pov/'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
-
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+results_count=50
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 #from __future__ import print_function
@@ -40,7 +32,11 @@ def upload_file():
             flash('No selected file')
             return redirect(request.url)
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return filename
+            filename = os.path.join(app.config['UPLOAD_FOLDER'],secure_filename(file.filename))
+            file.save( filename)
+            #results=[r for r in search.search(filename)]
+            #print (results)
+            results=search.search(filename)
+            #print(results)
+            return render_template('results.html', results=islice(results.items(),results_count))
     return render_template('search.html', text="hello")

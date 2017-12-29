@@ -7,8 +7,19 @@ import sqlite3
 import json
 #TODO
 #ukladani do db pro vyhledavani
+imgs_per_class=10000
 
 
+def get_subdirectories(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
+def img_to_np(path,x=224,y=224):
+    nparray = image.load_img(path,target_size=(x,y))
+    nparray = image.img_to_array(nparray)
+    nparray = np.expand_dims(nparray, axis=0)
+    nparray = preprocess_input(nparray)
+    nparray = np.squeeze(nparray)
+    return nparray
 class DataGenerator(object):
     'Generates data for Keras'
     def __init__(self,model,graph, dim_x = 224, dim_y = 224, batch_size = 10, dataset_path = './places365-dataset/20_classes'):
@@ -21,11 +32,15 @@ class DataGenerator(object):
         self.graph=graph
         self.conn=sqlite3.connect('representations.db')
         cur = self.conn.cursor()
+        #try:
+        #    cur.execute("DROP TABLE IMAGES")
+        #except sqlite3.OperationalError:
+        #    pass
+        cur.execute("CREATE TABLE IF NOT EXISTS IMAGES (id INTEGER PRIMARY KEY, path VARCHAR(255) , matrix BLOB)")
         try:
-            cur.execute("DROP TABLE IMAGES")
-        except sqlite3.OperationalError:
-            pass
-        cur.execute("CREATE TABLE IMAGES (id INTEGER PRIMARY KEY, path VARCHAR(255), matrix BLOB)")
+            cur.execute("CREATE UNIQUE INDEX idx_images_path ON images(path)")
+        except:pass
+
         self.conn.commit()
 
     def generate(self):
@@ -46,11 +61,10 @@ class DataGenerator(object):
                 # Generate data
                 #X, y = self.__data_generation(labels, list_IDs_temp)
                 X = self.__data_generation(image_IDS_temp)
+                #y_anch = np.ones((self.batch_size, 1)) # not used by triple loss function
+                #y_pos = np.ones((self.batch_size, 1)) # not used by triple loss function
+                #y_neg = np.ones((self.batch_size, 1)) # not used by triple loss function
                 y_stacked = np.ones((self.batch_size,2, 1)) # not used by triple loss function
-                y_anch = np.ones((self.batch_size, 1)) # not used by triple loss function
-                y_pos = np.ones((self.batch_size, 1)) # not used by triple loss function
-                y_neg = np.ones((self.batch_size, 1)) # not used by triple loss function
-
                 yield X,y_stacked#,y_anch,y_pos,y_neg]
 
     def __get_subdirectories(self, a_dir):
@@ -85,21 +99,21 @@ class DataGenerator(object):
             negatives=[]
             for idx in range(0,len(imgs_pos),2):
                 if not idx%500:
-                    print ("%s/%s"%(idx,len(imgs_pos)))
-                if idx>=1500:
-                    continue
-                anchor=self._img_to_np(c + '/' + imgs_pos[idx])
+                    print ("%s/%s"%(idx,min(len(imgs_pos),imgs_per_class)))
+                if idx>=imgs_per_class:
+                    break
+                anchor=img_to_np(os.path.join(self.dataset_path, c + '/' + imgs_pos[idx]))
                 try:
-                    positive=self._img_to_np(c + '/' + imgs_pos[idx+1])
+                    positive=img_to_np(os.path.join(self.dataset_path, c + '/' + imgs_pos[idx+1]))
                 except IndexError:
                     idx=-1
-                    positive=self._img_to_np(c + '/' + imgs_pos[idx+1])
+                    positive=img_to_np(os.path.join(self.dataset_path, c + '/' + imgs_pos[idx+1]))
 
                 rand_class = random.choice([x for x in classes if x != c])  # choose a different class randomly
                 #print ("Positive: %s"%c)
                 #print ("rand_class: %s"%rand_class)
                 neg = random.choice(os.listdir(os.path.join(self.dataset_path, rand_class)))
-                negative1 = self._img_to_np(rand_class + '/' + neg)
+                negative1 = img_to_np(os.path.join(self.dataset_path, rand_class + '/' + neg))
 
                 #rand_class = random.choice([x for x in classes if x != c])  # choose a different class randomly
                 #neg = random.choice(os.listdir(os.path.join(self.dataset_path, rand_class)))
@@ -138,12 +152,13 @@ class DataGenerator(object):
             conn = sqlite3.connect('representations.db')
             cur = conn.cursor()
 
-            for name, matrix in zip(imgs_pos,preds_anch):
+            for name, matrix in zip(anchors,preds_anch):
                 name="%s/%s"%(c,name)
-                cur.execute("INSERT INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
+                cur.execute("REPLACE INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
             for name, matrix in zip(positives,preds_pos):
                 name="%s/%s"%(c,name)
-                cur.execute("INSERT INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
+                cur.execute("REPLACE INTO images VALUES (?,?,?)", (None,name, json.dumps(matrix.tolist())))
+
 
             conn.commit()
 
@@ -204,24 +219,9 @@ class DataGenerator(object):
 
         for img_path in image_IDs:
             #print (img_path)
-            anchor = image.load_img(os.path.join(self.dataset_path, img_path[0]), target_size=(self.dim_y, self.dim_x))
-            anchor = image.img_to_array(anchor)
-            anchor = np.expand_dims(anchor, axis=0)
-            anchor = preprocess_input(anchor)
-            anchor = np.squeeze(anchor)
-
-            positive = image.load_img(os.path.join(self.dataset_path, img_path[1]), target_size=(self.dim_y, self.dim_x))
-            positive = image.img_to_array(positive)
-            positive = np.expand_dims(positive, axis=0)
-            positive = preprocess_input(positive)
-            positive = np.squeeze(positive)
-
-            negative = image.load_img(os.path.join(self.dataset_path, img_path[2]), target_size=(self.dim_y, self.dim_x))
-            negative = image.img_to_array(negative)
-            negative = np.expand_dims(negative, axis=0)
-            negative = preprocess_input(negative)
-            negative = np.squeeze(negative)
-
+            anchor = img_to_np(os.path.join(self.dataset_path, img_path[0]))
+            positive =  img_to_np(os.path.join(self.dataset_path, img_path[1]))
+            negative =  img_to_np(os.path.join(self.dataset_path, img_path[2]))
 
             anchor_batch.append(anchor)
             positive_batch.append(positive)

@@ -16,13 +16,13 @@ Run to split the dataset into training and testing parts:
 
 To train *with hard mining* (web api available):
  
-     ```python3 resnet.py```
+     python3 resnet.py
 
 After the model is trained and saved, you can run the sample website: ```FLASK_APP=web_pova.py flask run```
 
 To train *without hard mining* (web api not available): 
  
-      ```python3 model_noHardMin.py```
+      python3 model_noHardMin.py
 
 To evaluate the saved trained model run:
 
